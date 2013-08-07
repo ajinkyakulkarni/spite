@@ -102,7 +102,7 @@
       (with-demoted-errors
         (funcall reader)))))
 
-(defconst spite-response-readers
+(defvar spite-response-readers
   '((spite-resp-nocontentp . spite-resp-nocontent-reader)
     (spite-resp-jsonp . spite-resp-json-reader)
     (spite-resp-imagep . spite-resp-image-reader)
