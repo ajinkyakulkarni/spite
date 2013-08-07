@@ -345,7 +345,7 @@
          (modemapsym (intern (format "%s-mode-map" strname)))
          (bufname (format "*%s*" strname)))
     `(progn
-       (defvar ,modemapsym (make-composed-keymaps nil spite-mode-map))
+       (defvar ,modemapsym (make-composed-keymap nil spite-mode-map))
        (define-derived-mode ,modesym inferior-spite-mode ,strname
          ,(format "Major mode for interacting with APIs." base-url)
          (use-local-map ,modemapsym))
