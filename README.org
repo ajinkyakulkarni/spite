@@ -94,28 +94,11 @@ spite> (spite/req-url "https://api.github.com/repos/codahale/metrics")
 spite>
 #+END_SRC
 
-** Making requests
-
-   If you want to request an arbitrary URI, =spite/req-url= is the
-   function you want. Spite also has tools for building URLs,
-   =spite-make-url= being the main one.
-
-   Firstly, the value of =spite-base-url= (which is buffer-local) will
-   always be prepended ot the URL, making it easy to have different
-   Spites targeting different APIs.
-
-** Response readers
-
-   Spite tries to read the response into a native elisp
-   structure. It includes support for JSON and XML. If you request an
-   image, it will be displayed inline in the Spite buffer.
-
-   New readers can be added in =spite-response-readers=.
-
 ** Building requests
 
    The =spite-make-url= function is the main way to build a request
-   URL.
+   URL. Once built, you can use =spite/req-url= to fetch and display
+   it.
 
    The value of =spite-base-url= (which is buffer-local) is prepended
    to all output, making it easy to have multiple Spite instances
@@ -138,6 +121,26 @@ spite>
     (spite-make-url "users" `((username ,user) (status active))))
   ;; -> "users?username=ieure&status=active"
 #+END_SRC
+
+   The convenience function =spite/req= accepts the same arguments as
+   =spite-make-url=, and sends the result to =spite/req-url=.
+
+** Response readers
+
+   Spite tries to read the response into a native elisp
+   structure. It includes support for JSON and XML. If you request an
+   image, it will be displayed inline in the Spite buffer.
+
+   New readers can be added in =spite-response-readers=, which is an
+   alist of =(pred-fun . reader-fun)=. The predicate function is
+   evaluated in the HTTP response buffer, and if it returns a truthy
+   value, =reader=fun= is called. This function is also evaluated in
+   the context of the HTTP response buffer, and must return the forms
+   to be displayed.
+
+   The parsed structures are then pretty-printed with =spite-pp= and
+   inserted with =spite-insert=. You may need to hack these to
+   support exotic types.
 
 ** Custom REPLs
 
