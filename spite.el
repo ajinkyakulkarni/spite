@@ -183,15 +183,25 @@
 
 (defvar spite-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-m" 'spite-send-input)
-    (define-key map "\C-j" 'spite-api-send-input)
-    ;; These bindings are from `lisp-mode-shared-map' -- can you inherit
-    ;; from more than one keymap??
-    (define-key map "\e\C-q" 'indent-sexp)
-    (define-key map "\177" 'backward-delete-char-untabify)
-    ;; Some convenience bindings for setting the working buffer
-    map)
+    (define-key map (kbd "<return>") 'spite-send-input)
+    (define-key map "\C-c\C-b" nil)
+    (define-key map "\C-c\C-f" nil)
+    (define-key map "\C-c\C-v" nil)
+    (make-composed-keymap (list map) inferior-emacs-lisp-mode-map))
   "Keymap for spite mode.")
+
+(setq spite-mode-map
+      (let ((map (make-sparse-keymap)))
+        (define-key map "\t" 'comint-dynamic-complete)
+        (define-key map "\C-m" 'spite-return)
+        (define-key map "\C-j" 'spite-send-input)
+        (define-key map "\e\C-x" 'eval-defun)         ; for consistency with
+        (define-key map "\e\t" 'completion-at-point)  ; lisp-interaction-mode
+        ;; These bindings are from `lisp-mode-shared-map' -- can you inherit
+        ;; from more than one keymap??
+        (define-key map "\e\C-q" 'indent-sexp)
+        (define-key map "\177" 'backward-delete-char-untabify)
+        map))
 
 (defvar spite-api-input)
 
@@ -226,6 +236,33 @@
 
 (defun spite-imagep (result)
   (and (listp result) (eq 'image (car result))))
+
+;; This is the same as ielm-return, except it calls (spite-send-input)
+;; instead of (ielm-send-input). It should be possible to splice this
+;; in with a macro, but I'm too lazy to do it right now.
+(defun spite-return nil
+  "Newline and indent, or evaluate the sexp before the prompt.
+Complete sexps are evaluated; for incomplete sexps inserts a newline
+and indents.  If however `ielm-dynamic-return' is nil, this always
+simply inserts a newline."
+  (interactive)
+  (if ielm-dynamic-return
+      (let ((state
+             (save-excursion
+               (end-of-line)
+               (parse-partial-sexp (ielm-pm)
+                                   (point)))))
+        (if (and (< (car state) 1) (not (nth 3 state)))
+            (spite-send-input)
+          (when (and ielm-dynamic-multiline-inputs
+                     (save-excursion
+                       (beginning-of-line)
+                       (looking-at-p comint-prompt-regexp)))
+            (save-excursion
+              (goto-char (ielm-pm))
+              (newline 1)))
+          (newline-and-indent)))
+    (newline)))
 
 (defun spite-eval-input (input-string)
   "Evaluate the Lisp expression INPUT-STRING, and pretty-print the result."
@@ -271,37 +308,29 @@
                   ielm-temp-buffer)
               (set-match-data ielm-match-data)
               (save-excursion
-                (with-temp-buffer
-                  (condition-case err
-                      (unwind-protect
-                          ;; The next let form creates default
-                          ;; bindings for *, ** and ***.  But
-                          ;; these default bindings are
-                          ;; identical to the ielm-local
-                          ;; bindings.  Hence, during the
-                          ;; evaluation of ielm-form, the
-                          ;; ielm-local values are going to be
-                          ;; used in all buffers except for
-                          ;; other ielm buffers, which override
-                          ;; them.  Normally, the variables *1,
-                          ;; *2 and *3 also have default
-                          ;; bindings, which are not overridden.
-                          (let ((* *1)
-                                (** *2)
-                                (*** *3))
-                            (kill-buffer (current-buffer))
-                            (setq ielm-result
-                                  (eval ielm-form lexical-binding))
-                            (setq
-                             ielm-temp-buffer
-                             (generate-new-buffer " *ielm-temp*"))
-                            (set-buffer ielm-temp-buffer))
-                        (when ielm-temp-buffer
-                          (kill-buffer ielm-temp-buffer)))
-                    (error (setq ielm-result (error-message-string err))
-                           (setq ielm-error-type "Eval error"))
-                    (quit (setq ielm-result "Quit during evaluation")
-                          (setq ielm-error-type "Eval error")))))
+                (condition-case err
+                    (unwind-protect
+                        ;; The next let form creates default
+                        ;; bindings for *, ** and ***.  But
+                        ;; these default bindings are
+                        ;; identical to the ielm-local
+                        ;; bindings.  Hence, during the
+                        ;; evaluation of ielm-form, the
+                        ;; ielm-local values are going to be
+                        ;; used in all buffers except for
+                        ;; other ielm buffers, which override
+                        ;; them.  Normally, the variables *1,
+                        ;; *2 and *3 also have default
+                        ;; bindings, which are not overridden.
+                        (let ((* *1)
+                              (** *2)
+                              (*** *3))
+                          (setq ielm-result
+                                (eval ielm-form lexical-binding))))
+                  (error (setq ielm-result (error-message-string err))
+                         (setq ielm-error-type "Eval error"))
+                  (quit (setq ielm-result "Quit during evaluation")
+                        (setq ielm-error-type "Eval error"))))
               (setq ielm-match-data (match-data)))
           (setq ielm-error-type "IELM error")
           (setq ielm-result "More than one sexp in input")))
@@ -365,7 +394,20 @@
            (switch-to-buffer bufname)
            (when old-point (push-mark old-point)))))))
 
-(defspite spite "")
+(defun spite ()
+  "Interact with REST APIs"
+  (interactive)
+  (let ((old-point)
+        (bufname "*spite*"))
+    (unless (comint-check-proc bufname)
+      (with-current-buffer (get-buffer-create bufname)
+        (unless (zerop (buffer-size)) (setq old-point (point)))
+        (let ((ielm-header "")
+              (ielm-prompt "spite> "))
+          (inferior-spite-mode))
+        (setq ielm-working-buffer (current-buffer))))
+    (switch-to-buffer bufname)
+    (when old-point (push-mark old-point))))
 
 (provide 'spite)
 ;;; spite.el ends here
