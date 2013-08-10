@@ -155,3 +155,10 @@ spite>
 #+BEGIN_SRC
 github> (github/repo 'codahale 'metrics)
 #+END_SRC
+
+*** Unfinished business
+
+    - Support for OAuth would be nice.
+    - Hook into [[http://github.com/ieure/nspace-el][nspace.el]] so you can prefix all your helper functions
+      but avoid typing it.
+    - Paren insertion if the forms lack them.
