@@ -113,6 +113,9 @@ spite>
 ;; -> "users/ieure"
 #+END_SRC
 
+   Quoted symbols and keywords are turned into strings. Normal
+   symbols work the way you’d expect.
+
    If you want to include query-string arguments, you may include an
    alist of them as the last argument:
 
