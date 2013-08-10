@@ -121,6 +121,14 @@
 
 
 
+(defun spite-make-url-fixup-objects (objects)
+  "Turn keyword symbols into strings."
+  (mapcar
+   (lambda (obj)
+     (cond ((keywordp obj) (substring (symbol-name obj) 1))
+           (t obj)))
+   objects))
+
 (defun spite-make-url (path &rest objects)
   "Make an API URL.
 
@@ -133,8 +141,9 @@
    "
   (let* ((maybe-qargs (car (last objects)))
          (qargs (and (listp maybe-qargs) maybe-qargs))
-         (objs (if qargs (butlast objects) objects))
-         (path (apply 'format (or path "") objects)))
+         (objs (spite-make-url-fixup-objects
+                (if qargs (butlast objects) objects)))
+         (path (apply 'format (or path "") objs)))
     (concat spite-base-url path
             (when qargs
               (concat "?" (url-build-query-string qargs))))))
