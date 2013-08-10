@@ -246,32 +246,11 @@
 (defun spite-imagep (result)
   (and (listp result) (eq 'image (car result))))
 
-;; This is the same as ielm-return, except it calls (spite-send-input)
-;; instead of (ielm-send-input). It should be possible to splice this
-;; in with a macro, but I'm too lazy to do it right now.
-(defun spite-return nil
-  "Newline and indent, or evaluate the sexp before the prompt.
-Complete sexps are evaluated; for incomplete sexps inserts a newline
-and indents.  If however `ielm-dynamic-return' is nil, this always
-simply inserts a newline."
-  (interactive)
-  (if ielm-dynamic-return
-      (let ((state
-             (save-excursion
-               (end-of-line)
-               (parse-partial-sexp (ielm-pm)
-                                   (point)))))
-        (if (and (< (car state) 1) (not (nth 3 state)))
-            (spite-send-input)
-          (when (and ielm-dynamic-multiline-inputs
-                     (save-excursion
-                       (beginning-of-line)
-                       (looking-at-p comint-prompt-regexp)))
-            (save-excursion
-              (goto-char (ielm-pm))
-              (newline 1)))
-          (newline-and-indent)))
-    (newline)))
+(defmacro spite-def-spite-return ()
+  `(macrolet ((ielm-send-input () '(spite-send-input)))
+     (defun spite-return () ,@(cddr (symbol-function 'ielm-return)))))
+
+(spite-def-spite-return)
 
 (defun spite-eval-input (input-string)
   "Evaluate the Lisp expression INPUT-STRING, and pretty-print the result."
