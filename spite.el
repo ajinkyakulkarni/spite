@@ -380,7 +380,7 @@
     `(progn
        (defvar ,modemapsym (make-composed-keymap nil spite-mode-map))
        (define-derived-mode ,modesym inferior-spite-mode ,strname
-         ,(format "Major mode for interacting with APIs." base-url)
+         ,(format "Major mode for interacting with the %s API." name)
          (use-local-map ,modemapsym)
          ,@body)
 
