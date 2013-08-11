@@ -200,25 +200,17 @@
 
 (defvar spite-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<return>") 'spite-send-input)
-    (define-key map "\C-c\C-b" nil)
-    (define-key map "\C-c\C-f" nil)
-    (define-key map "\C-c\C-v" nil)
-    (make-composed-keymap (list map) inferior-emacs-lisp-mode-map))
+    (define-key map "\t" 'comint-dynamic-complete)
+    (define-key map "\C-m" 'spite-return)
+    (define-key map "\C-j" 'spite-send-input)
+    (define-key map "\e\C-x" 'eval-defun)         ; for consistency with
+    (define-key map "\e\t" 'completion-at-point)  ; lisp-interaction-mode
+    ;; These bindings are from `lisp-mode-shared-map' -- can you inherit
+    ;; from more than one keymap??
+    (define-key map "\e\C-q" 'indent-sexp)
+    (define-key map "\177" 'backward-delete-char-untabify)
+    map)
   "Keymap for spite mode.")
-
-(setq spite-mode-map
-      (let ((map (make-sparse-keymap)))
-        (define-key map "\t" 'comint-dynamic-complete)
-        (define-key map "\C-m" 'spite-return)
-        (define-key map "\C-j" 'spite-send-input)
-        (define-key map "\e\C-x" 'eval-defun)         ; for consistency with
-        (define-key map "\e\t" 'completion-at-point)  ; lisp-interaction-mode
-        ;; These bindings are from `lisp-mode-shared-map' -- can you inherit
-        ;; from more than one keymap??
-        (define-key map "\e\C-q" 'indent-sexp)
-        (define-key map "\177" 'backward-delete-char-untabify)
-        map))
 
 (defvar spite-api-input)
 
