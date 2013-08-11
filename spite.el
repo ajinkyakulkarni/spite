@@ -198,7 +198,7 @@
 
 ;; Repl
 
-(defvar spite-mode-map
+(defvar inferior-spite-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\t" 'comint-dynamic-complete)
     (define-key map "\C-m" 'spite-return)
@@ -209,7 +209,7 @@
     ;; from more than one keymap??
     (define-key map "\e\C-q" 'indent-sexp)
     (define-key map "\177" 'backward-delete-char-untabify)
-    map)
+    (make-composed-keymap (list map) comint-mode-map))
   "Keymap for spite mode.")
 
 (defvar spite-api-input)
@@ -371,7 +371,8 @@
 (define-derived-mode inferior-spite-mode inferior-emacs-lisp-mode
   "Spite"
   "Major mode for interacting with REST APIs."
-  (setq comint-input-sender 'spite-input-sender))
+  (setq comint-input-sender 'spite-input-sender)
+  (use-local-map inferior-spite-mode-map))
 
 (defmacro defspite (name base-url &rest body)
   "Create a REPL for a REST API."
@@ -380,7 +381,6 @@
          (modemapsym (intern (format "%s-mode-map" strname)))
          (bufname (format "*%s*" strname)))
     `(progn
-       (defvar ,modemapsym (make-composed-keymap nil spite-mode-map))
        (define-derived-mode ,modesym inferior-spite-mode ,strname
          ,(format "Major mode for interacting with the %s API." name)
          (use-local-map ,modemapsym)
