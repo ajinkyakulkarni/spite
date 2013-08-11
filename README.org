@@ -162,6 +162,8 @@ spite>
 github> (github/repo 'codahale 'metrics)
 #+END_SRC
 
+  A fuller example can be found in [[github-api.el]].
+
 *** Unfinished business
 
     - Support for OAuth would be nice.
