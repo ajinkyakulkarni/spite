@@ -247,6 +247,8 @@
   (and (listp result) (eq 'image (car result))))
 
 (defmacro spite-def-spite-return ()
+  (when (byte-code-function-p (symbol-function 'ielm-send-input))
+    (load "ielm.el"))
   `(macrolet ((ielm-send-input () '(spite-send-input)))
      (defun spite-return () ,@(cddr (symbol-function 'ielm-return)))))
 
