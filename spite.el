@@ -36,6 +36,14 @@
 (defvar spite-insert-function 'spite-insert
   "Function to insert the result into the spite buffer.")
 
+(defvar spite-input-filter-pre-read-hooks nil
+  "List of functions to filter the raw input before read")
+(make-variable-buffer-local 'spite-input-filter-pre-read-hooks)
+
+(defvar spite-input-filter-pre-eval-hooks nil
+  "List of functions to filter input expr before eval.")
+(make-variable-buffer-local 'spite-input-filter-pre-eval-hooks)
+
 
 ;; Vars
 
@@ -252,6 +260,22 @@
 
 (spite-def-spite-return)
 
+(defun spite-filter-across (input funcs)
+  "Filter the input through funcs."
+  (let ((val input))
+    (mapcar (lambda (f)
+              (setq val (funcall f val)))
+            funcs)
+    val))
+
+(defun spite-filter-string (input-string)
+  "Filter the input-string through `spite-input-filter-pre-read-hooks'."
+  (spite-filter-across input-string spite-input-filter-pre-read-hooks))
+
+(defun spite-filter-forms (input-forms)
+  "Filter the input-forms through `spite-input-filter-pre-eval-hooks'."
+  (spite-filter-across input-forms spite-input-filter-pre-eval-hooks))
+
 (defun spite-eval-input (input-string)
   "Evaluate the Lisp expression INPUT-STRING, and pretty-print the result."
   ;; This is the function that actually `sends' the input to the
@@ -275,8 +299,8 @@
         (ielm-pmark (ielm-pm)))
     (unless (ielm-is-whitespace-or-comment ielm-string)
       (condition-case err
-          (let ((rout (read-from-string ielm-string)))
-            (setq ielm-form (car rout)
+          (let ((rout (read-from-string (spite-filter-string ielm-string))))
+            (setq ielm-form (spite-filter-forms (car rout))
                   ielm-pos (cdr rout)))
         (error (setq ielm-result (error-message-string err))
                (setq ielm-error-type "Read error")))
@@ -355,7 +379,7 @@
   "Major mode for interacting with REST APIs."
   (setq comint-input-sender 'spite-input-sender))
 
-(defmacro defspite (name base-url)
+(defmacro defspite (name base-url &rest body)
   "Create a REPL for a REST API."
   (let* ((strname (symbol-name name))
          (modesym (intern (format "%s-mode" strname)))
@@ -365,7 +389,8 @@
        (defvar ,modemapsym (make-composed-keymap nil spite-mode-map))
        (define-derived-mode ,modesym inferior-spite-mode ,strname
          ,(format "Major mode for interacting with APIs." base-url)
-         (use-local-map ,modemapsym))
+         (use-local-map ,modemapsym)
+         ,@body)
 
        (defun ,name ()
          ,(format "Interact with the %s API" strname)
