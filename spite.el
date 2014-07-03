@@ -1,6 +1,6 @@
 ;;; spite.el --- REST API REPL
 
-;; Copyright (C) 2013 Ian Eure
+;; Copyright (C) 2013, 2014 Ian Eure
 
 ;; Author: Ian Eure <ian.eure@gmail.com>
 ;; Keywords:
@@ -246,13 +246,29 @@
 (defun spite-imagep (result)
   (and (listp result) (eq 'image (car result))))
 
-(defmacro spite-def-spite-return ()
-  (when (byte-code-function-p (symbol-function 'ielm-send-input))
-    (load "ielm.el"))
-  `(macrolet ((ielm-send-input () '(spite-send-input)))
-     (defun spite-return () ,@(cddr (symbol-function 'ielm-return)))))
-
-(spite-def-spite-return)
+(defun spite-return (&optional for-effect)
+  "Newline and indent, or evaluate the sexp before the prompt.
+Complete sexps are evaluated; for incomplete sexps inserts a newline
+and indents.  If however `ielm-dynamic-return' is nil, this always
+simply inserts a newline."
+  (interactive)
+  (if ielm-dynamic-return
+      (let ((state
+             (save-excursion
+               (end-of-line)
+               (parse-partial-sexp (ielm-pm)
+                                   (point)))))
+        (if (and (< (car state) 1) (not (nth 3 state)))
+            (spite-send-input)
+          (when (and ielm-dynamic-multiline-inputs
+                     (save-excursion
+                       (beginning-of-line)
+                       (looking-at-p comint-prompt-regexp)))
+            (save-excursion
+              (goto-char (ielm-pm))
+              (newline 1)))
+          (newline-and-indent)))
+    (newline)))
 
 (defun spite-filter-across (input funcs)
   "Filter the input through funcs."
@@ -361,7 +377,7 @@
         (setq ielm-output (concat ielm-output ielm-prompt-internal))
         (comint-output-filter (ielm-process) ielm-output)))
 
-(defun spite-send-input nil
+(defun spite-send-input (&optional for-effect)
   "Evaluate the Emacs Lisp expression after the prompt."
   (interactive)
   (let (spite-input)                    ; set by spite-input-sender
