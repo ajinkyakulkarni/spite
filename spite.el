@@ -1,8 +1,9 @@
 ;;; spite.el --- REST API REPL
 
-;; Copyright (C) 2013, 2014 Ian Eure
+;; Copyright (C) 2013, 2014, 2015 Ian Eure
 
 ;; Author: Ian Eure <ian.eure@gmail.com>
+;; Version: 0.1.0
 ;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
