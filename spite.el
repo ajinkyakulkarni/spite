@@ -89,7 +89,7 @@
 (defun spite-resp-text-reader ()
   "Read & parse JSON data."
   (search-forward "\n\n")
-  ;; (buffer-substring (point) (point-max)))
+  (buffer-substring (point) (point-max)))
 
 (defun spite-resp-jsonp ()
   "Is this a JSON response?"
@@ -118,7 +118,7 @@
   (save-excursion
     (save-match-data
       (with-demoted-errors
-        (funcall reader)))))
+          (funcall reader)))))
 
 (defvar spite-response-readers
   '((spite-resp-nocontentp . spite-resp-nocontent-reader)
@@ -147,6 +147,13 @@
      (cond ((keywordp obj) (substring (symbol-name obj) 1))
            (t obj)))
    objects))
+
+(defun spite/sym->str (thing)
+  "Turn symbols or keywords into strings."
+  (cond ((keywordp thing) (substring (symbol-name thing) 1))
+        ((symbolp thing) (symbol-name thing))
+        ((stringp thing) thing)
+        (t (error "Don't know what to do with this!"))))
 
 (defun spite-make-url (path &rest objects)
   "Make an API URL.
@@ -219,6 +226,13 @@
   (condp body
          ((string= "applicaton/json") (json-encode body))
          (t body)))
+
+(defmacro spite/send-json (method body &rest exprs)
+  `(let ((url-request-method (upcase (spite/sym->str ,method)))
+         (url-request-extra-headers '(("Content-Type" . "application/json; charset=utf-8")))
+         (url-request-body (if (listp body) (json-encode ,body)
+                             body)))
+     ,@exprs))
 
 (cl-defun spite/post ((path objects) &key body (type "application/json"))
   (let ((url-request-method "POST")
@@ -493,7 +507,7 @@ simply inserts a newline."
 (define-derived-mode spite-error-mode fundamental-mode "Spite Error"
   "Major mode for displaying Spite errors."
 
-  (use-local-map alonzo-search-mode-map)
+  (use-local-map spite-error-mode-map)
   (setq buffer-read-only t))
 
 (defun spite-error-replace (http-buf error-buf)
