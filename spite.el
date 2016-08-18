@@ -167,7 +167,7 @@
             (when qargs
               (concat "?" (url-build-query-string qargs))))))
 
-(defun spite/req-url (url)
+(cl-defun spite/req-url (url)
   "Make a request to a URL.
 
    API is the name of the service to call, for example \"user\".
@@ -189,6 +189,14 @@
           (setq spite-last-response-headers headers)))
       (unless (and (>= url-http-response-status 200)
                    (<= url-http-response-status 299))
+        (let ((body (buffer-substring (point-min) (point-max))))
+          (pop-to-buffer (concat (buffer-name replbuf) " ERROR"))
+          (spite-error-mode)
+          (let ((buffer-read-only))
+            (erase-buffer)
+            (save-excursion
+              (insert body)
+              (spite-error-highlight-buffer))))
         (error (format "%s: %s" url
                        (buffer-substring (point-min) (line-end-position)))))
 
@@ -206,6 +214,21 @@
    Returns the response body parsed into JSON on success, or raises an
    error on non-2xx or non-JSON response."
   (spite/req-url (apply 'spite-make-url path objects)))
+
+(defun spite/normalize (body type)
+  (condp body
+         ((string= "applicaton/json") (json-encode body))
+         (t body)))
+
+(cl-defun spite/post ((path objects) &key body (type "application/json"))
+  (let ((url-request-method "POST")
+        (url-request-data (normalize body type)))
+    (apply #'spite/req path objects)))
+
+(cl-defun spite/put ((path objects) &key body (type "application/json"))
+  (let ((url-request-method "PUT")
+        (url-request-data (normalize body type)))
+    (apply #'spite/req path objects)))
 
 ;; Repl
 
@@ -385,8 +408,8 @@ simply inserts a newline."
         (setq ielm-output (concat ielm-output "\n"))
         (funcall spite-insert-function pp-result)))
 
-        (setq ielm-output (concat ielm-output ielm-prompt-internal))
-        (comint-output-filter (ielm-process) ielm-output)))
+    (setq ielm-output (concat ielm-output ielm-prompt-internal))
+    (comint-output-filter (ielm-process) ielm-output)))
 
 (defun spite-send-input (&optional for-effect)
   "Evaluate the Emacs Lisp expression after the prompt."
@@ -442,6 +465,57 @@ simply inserts a newline."
         (setq ielm-working-buffer (current-buffer))))
     (switch-to-buffer bufname)
     (when old-point (push-mark old-point))))
+
+(defvar spite-error-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "q" 'quit-window)
+    (define-key map "n" 'next-line)
+    (define-key map "p" 'previous-line)
+    map))
+
+(defgroup spite-error nil
+  "Major mode for displaying Spite errors."
+  :prefix "spite-error-"
+  :group 'applications)
+
+(defface spite-status-face
+  '((t (:inherit font-lock-function-name-face)))
+
+  "Face used for Spite HTTP status lines"
+  :group 'spite-error)
+
+(defface spite-error-header-name-face
+  '((t (:inherit font-lock-variable-name-face)))
+
+  "Face used for Spite HTTP header names."
+  :group 'spite-error)
+
+(define-derived-mode spite-error-mode fundamental-mode "Spite Error"
+  "Major mode for displaying Spite errors."
+
+  (use-local-map alonzo-search-mode-map)
+  (setq buffer-read-only t))
+
+(defun spite-error-replace (http-buf error-buf)
+  (let ((body (with-current-buffer http-buf
+                (buffer-substring (point-min)
+                                  (point-max)))))
+    (with-current-buffer error-buf
+      (let ((buffer-read-only nil))
+        (widen)
+        (erase-buffer)
+        (insert body)))))
+
+(defun spite-error-highlight-buffer ()
+  (save-excursion
+    (widen)
+    (goto-char (point-min))
+    (let ((header-end-pos (save-excursion (search-forward "\n\n")))
+          (status (make-overlay (line-beginning-position) (line-end-position))))
+      (overlay-put status 'face 'spite-status-face)
+      (while (re-search-forward "^[^:]+:" header-end-pos t)
+        (let ((header (make-overlay (line-beginning-position) (match-end 0))))
+          (overlay-put header 'face 'spite-error-header-name-face))))))
 
 (provide 'spite)
 ;;; spite.el ends here
