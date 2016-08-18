@@ -1,6 +1,6 @@
 ;;; spite.el --- REST API REPL
 
-;; Copyright (C) 2013, 2014, 2015 Ian Eure
+;; Copyright (C) 2013, 2014, 2015, 2016 Ian Eure
 
 ;; Author: Ian Eure <ian.eure@gmail.com>
 ;; Version: 0.1.0
@@ -82,6 +82,15 @@
     (search-forward "\n\n")
     (create-image (buffer-substring (point) (point-max)) type t)))
 
+(defun spite-resp-textp ()
+  "Is this a text response?"
+  (string-match-p "^text/plain" url-http-content-type))
+
+(defun spite-resp-text-reader ()
+  "Read & parse JSON data."
+  (search-forward "\n\n")
+  ;; (buffer-substring (point) (point-max)))
+
 (defun spite-resp-jsonp ()
   "Is this a JSON response?"
   (string-match-p "^application/json" url-http-content-type))
@@ -94,7 +103,7 @@
 (defun spite-resp-xmlp ()
   (string-match-p "^\\(application\\|text\\)/xml" url-http-content-type))
 
-(defun spite-resp-xml-readerp ()
+(defun spite-resp-xml-reader ()
   (search-forward "\n\n")
   (xml-parse-region))
 
@@ -115,7 +124,8 @@
   '((spite-resp-nocontentp . spite-resp-nocontent-reader)
     (spite-resp-jsonp . spite-resp-json-reader)
     (spite-resp-imagep . spite-resp-image-reader)
-    (spite-resp-xmlp . spite-resp-xml-readerp)
+    (spite-resp-xmlp . spite-resp-xml-reader)
+    (spite-resp-textp . spite-resp-text-reader)
     (spite-resp-defaultp . spite-resp-default-reader))
   "Alist of response readers. Each entry takes the form (PREDF . READER);
    if PREDF returns non-nil (with the response buffer active), READER
